@@ -1,5 +1,7 @@
 # React Authentication App with AWS Cognito and API Integration
 
+![Landing Page](./images/landing.png)
+
 ## Table of Contents
 - [React Authentication App with AWS Cognito and API Integration](#react-authentication-app-with-aws-cognito-and-api-integration)
   - [Table of Contents](#table-of-contents)
