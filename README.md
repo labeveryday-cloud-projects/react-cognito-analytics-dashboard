@@ -1,9 +1,9 @@
-# React Authentication App with AWS Cognito and API Integration
+# React Authentication App with Amazon Cognito and API Integration
 
 ![Landing Page](./images/landing.png)
 
 ## Table of Contents
-- [React Authentication App with AWS Cognito and API Integration](#react-authentication-app-with-aws-cognito-and-api-integration)
+- [React Authentication App with Amazon Cognito and API Integration](#react-authentication-app-with-amazon-cognito-and-api-integration)
   - [Table of Contents](#table-of-contents)
   - [Project Overview](#project-overview)
   - [Purpose](#purpose)
@@ -12,10 +12,10 @@
   - [Prerequisites](#prerequisites)
   - [Installation](#installation)
   - [AWS Setup](#aws-setup)
-    - [Cognito Setup](#cognito-setup)
-    - [Lambda Function Setup](#lambda-function-setup)
-    - [API Gateway Setup](#api-gateway-setup)
-  - [Configuration](#configuration)
+    - [Step-1: Cognito Setup](#step-1-cognito-setup)
+    - [Step-2: Lambda Function Setup](#step-2-lambda-function-setup)
+    - [Step-3: API Gateway Setup](#step-3-api-gateway-setup)
+  - [Step-4: Configuration](#step-4-configuration)
   - [Running the App](#running-the-app)
   - [Project Structure](#project-structure)
   - [Key Components](#key-components)
@@ -37,12 +37,12 @@
 
 ## Project Overview
 
-This project is a React-based web application that demonstrates user authentication using AWS Cognito. It includes features such as user registration, login, profile management, and access to protected routes. The application also integrates with a custom API built with AWS Lambda and API Gateway to fetch and display user analytics data.
+This project is a React-based web application that demonstrates user authentication using [Amazon Cognito](https://docs.aws.amazon.com/cognito/latest/developerguide/what-is-amazon-cognito.html). It includes features such as user registration, login, profile management, and access to protected routes. The application also integrates with a custom API built with [AWS Lambda](https://docs.aws.amazon.com/lambda/latest/dg/welcome.html) and [API Gateway](https://docs.aws.amazon.com/apigateway/latest/developerguide/welcome.html) to fetch and display user analytics data.
 
 ## Purpose
 
 The main purposes of this application are:
-1. To showcase a robust authentication system using AWS Cognito in a React application.
+1. To showcase a robust authentication system using Amazon Cognito in a React application.
 2. To demonstrate the integration of a React frontend with AWS services (Cognito, Lambda, API Gateway).
 3. To provide a template for developers looking to implement similar authentication flows in their projects.
 4. To display how to create and consume protected API endpoints.
@@ -57,7 +57,7 @@ The main purposes of this application are:
   - Tailwind CSS for styling
 
 - Backend:
-  - AWS Cognito for user authentication
+  - Amazon Cognito for user authentication
   - AWS Lambda for serverless backend logic
   - AWS API Gateway for API management
   - Python for Lambda function
@@ -93,9 +93,11 @@ Before you begin, ensure you have the following installed:
 
 ## AWS Setup
 
-### Cognito Setup
+Before you can login to the application you will need to setup a Cognito User Pool and App Client. To send request to the backend you will need to create a lambda function and deploy an API gateway that contains a Cognito authorizer. I have provided all of the needed instructions below:
 
-1. Go to the AWS Cognito Console
+### Step-1: Cognito Setup
+
+1. Go to the Amazon Cognito Console
 2. Create a new User Pool
 3. Configure sign-in options (email, username)
 4. Set password strength requirements
@@ -103,7 +105,7 @@ Before you begin, ensure you have the following installed:
 6. Add an app client (with no secret)
 7. Note down the User Pool ID and App Client ID
 
-### Lambda Function Setup
+### Step-2: Lambda Function Setup
 
 1. Go to the AWS Lambda Console
 2. Create a new function
@@ -112,59 +114,87 @@ Before you begin, ensure you have the following installed:
 
    ```python
    import json
-   import random
-   from datetime import datetime, timedelta
+  import random
+  from datetime import datetime, timedelta
 
-   def lambda_handler(event, context):
-       # Generate mock user analytics data
-       user_data = generate_user_analytics()
-       
-       return {
-           'statusCode': 200,
-           'body': json.dumps(user_data),
-           'headers': {
-               'Content-Type': 'application/json',
-               'Access-Control-Allow-Origin': '*',
-               'Access-Control-Allow-Headers': 'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token',
-               'Access-Control-Allow-Methods': 'GET,OPTIONS'
-           }
-       }
 
-   def generate_user_analytics():
-       end_date = datetime.now()
-       start_date = end_date - timedelta(days=7)
-       
-       data = []
-       current_date = start_date
-       
-       while current_date <= end_date:
-           data.append({
-               'date': current_date.strftime('%Y-%m-%d'),
-               'activeUsers': random.randint(1000, 5000),
-               'newSignups': random.randint(50, 300),
-               'pageViews': random.randint(10000, 50000),
-               'avgSessionDuration': round(random.uniform(120, 600), 2)  # in seconds
-           })
-           current_date += timedelta(days=1)
-       
-       return {
-           'userAnalytics': data,
-           'totalActiveUsers': sum(day['activeUsers'] for day in data),
-           'totalNewSignups': sum(day['newSignups'] for day in data),
-           'totalPageViews': sum(day['pageViews'] for day in data),
-           'avgSessionDuration': round(sum(day['avgSessionDuration'] for day in data) / len(data), 2)
-       }
+  def lambda_handler(event, context):
+      print(event)
+      try:
+          origin = event['headers'].get('origin', '')
+
+          # CORS headers
+          cors_headers = {
+              'Access-Control-Allow-Origin': 'http://localhost:3000',
+              'Access-Control-Allow-Headers': 'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token',
+              'Access-Control-Allow-Methods': 'OPTIONS,POST,GET'
+          }
+
+          if origin == "http://localhost:3000":
+              print(f"Authorized origin: {origin}")
+
+              # Simulate fetching user analytics data
+              user_data = generate_user_analytics()
+
+              print(user_data)
+
+              return {
+                  'statusCode': 200,
+                  'body': json.dumps(user_data),
+                  'headers': cors_headers
+              }
+          else:
+              print(f"NOT Authorized! origin: {origin}")
+              return {
+                  'statusCode': 403,
+                  'body': json.dumps('Forbidden: Unauthorized origin'),
+                  'headers': cors_headers
+              }
+
+      except Exception as e:
+          print(f"Error: {str(e)}")
+          return {
+              'statusCode': 500,
+              'body': json.dumps('Internal Server Error'),
+              'headers': cors_headers
+          }
+
+  def generate_user_analytics():
+      # Generate mock data for the last 7 days
+      end_date = datetime.now()
+      start_date = end_date - timedelta(days=7)
+
+      data = []
+      current_date = start_date
+
+      while current_date <= end_date:
+          data.append({
+              'date': current_date.strftime('%Y-%m-%d'),
+              'activeUsers': random.randint(1000, 5000),
+              'newSignups': random.randint(50, 300),
+              'pageViews': random.randint(10000, 50000),
+              'avgSessionDuration': round(random.uniform(120, 600), 2)  # in seconds
+          })
+          current_date += timedelta(days=1)
+
+      return {
+          'userAnalytics': data,
+          'totalActiveUsers': sum(day['activeUsers'] for day in data),
+          'totalNewSignups': sum(day['newSignups'] for day in data),
+          'totalPageViews': sum(day['pageViews'] for day in data),
+          'avgSessionDuration': round(sum(day['avgSessionDuration'] for day in data) / len(data), 2)
+      }
    ```
 
 5. Deploy the Lambda function
 
-### API Gateway Setup
+### Step-3: API Gateway Setup
 
 1. Go to the API Gateway Console
 2. Create a new REST API
 3. Create a new resource (e.g., /data)
-4. Create a GET method for this resource
-5. Integrate the GET method with your Lambda function
+4. Create a `GET` method for this resource
+5. Integrate the GET method with your Lambda function (select lambda proxy)
 6. Enable CORS for the resource:
    - Access-Control-Allow-Origin: '*'
    - Access-Control-Allow-Headers: 'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'
@@ -173,9 +203,9 @@ Before you begin, ensure you have the following installed:
 8. Apply the authorizer to your GET method
 9. Deploy the API and note down the invoke URL
 
-## Configuration
+## Step-4: Configuration
 
-1. Create a file named `aws-exports.js` in the `src` directory with the following content:
+1. Rename the file named `_aws-exports_update_me.js` in the `src` directory to `aws-exports.js` then modify the following content with your own account info:
 
    ```javascript
    const awsmobile = {
@@ -195,7 +225,12 @@ Before you begin, ensure you have the following installed:
    export default awsmobile;
    ```
 
-2. Replace the placeholder values with your actual AWS resource details.
+2. Open the `src/components/UserAnalytics.js` file and replace the placeholder information with your own api gateway name and resource name.
+
+```js
+const restOperation = get({ apiName: 'UPDATE-ME-my-api', path: 'UPDATE-ME-my-api-resource' });
+```
+
 
 ## Running the App
 
@@ -224,7 +259,7 @@ src/
 └── index.css
 ```
 
->NOTE: You will have to rename `_aws-exports_update_me.js` to `aws-exports.js` and update with your cognito and API gateway info.
+>NOTE: Don't forget to rename `_aws-exports_update_me.js` to `aws-exports.js` and update with your cognito and API gateway info.
 
 ## Key Components
 
